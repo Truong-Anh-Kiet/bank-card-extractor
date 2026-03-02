@@ -1,17 +1,14 @@
-import os
 from uuid import uuid4
-from sqlalchemy import create_engine, Column, String, Float, DateTime, func
+from sqlalchemy import select, Column, String, Float, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from domain import BankCard
-from application import BankCardRepository
+from sqlalchemy.ext.asyncio import AsyncSession
+from domain import BankCard, BankCardRepository
+from .database import Base
 from typing import List
-
-Base = declarative_base()
 
 
 class BankCardDB(Base):
+    """SQLAlchemy model for the bank_cards table."""
     __tablename__ = "bank_cards"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4, unique=True, nullable=False)
@@ -26,18 +23,12 @@ class BankCardDB(Base):
 
 
 class PostgresBankCardRepository(BankCardRepository):
-    """Postgres implementation for storing and retrieving BankCard."""
+    """Async Postgres Repository."""
 
-    def __init__(self):
-        db_url = os.getenv("DATABASE_URL")
-        if not db_url:
-            raise ValueError("DATABASE_URL not set in .env")
-        self.engine = create_engine(db_url)
-        Base.metadata.create_all(self.engine)
-        self.Session = sessionmaker(bind=self.engine)
+    def __init__(self, session: AsyncSession):
+        self.session = session
 
     async def save(self, card: BankCard) -> None:
-        session = self.Session()
         db_card = BankCardDB(
             bank_name=card.bank_name,
             payment_network=card.payment_network,
@@ -47,16 +38,14 @@ class PostgresBankCardRepository(BankCardRepository):
             card_type=card.card_type,
             confidence=card.confidence,
         )
-        session.add(db_card)
-        session.commit()
-        session.close()
+        self.session.add(db_card)
+        await self.session.commit()
 
     async def get_all(self) -> List[BankCard]:
-        session = self.Session()
-        db_cards = session.query(BankCardDB)\
-                         .order_by(BankCardDB.extracted_at.desc())\
-                         .all()
-        session.close()
+        result = await self.session.execute(
+            select(BankCardDB).order_by(BankCardDB.extracted_at.desc())
+        )
+        db_cards = result.scalars().all()
 
         return [
             BankCard(

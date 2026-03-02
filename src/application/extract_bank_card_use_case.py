@@ -1,5 +1,4 @@
-from domain import BankCard
-from domain import BankCardRepository
+from domain import BankCard, BankCardRepository
 from .ports import LLMServiceProtocol
 
 class ExtractBankCardUseCase:

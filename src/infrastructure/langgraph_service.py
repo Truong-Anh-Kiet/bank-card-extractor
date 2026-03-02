@@ -8,6 +8,7 @@ from typing import TypedDict
 
 
 class AgentState(TypedDict):
+    """State for the LangGraph agent."""
     image_base64: str
     card: BankCard | None
     confidence: float
