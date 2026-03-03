@@ -12,17 +12,18 @@ class AgentState(TypedDict):
     image_base64: str
     card: BankCard | None
     confidence: float
-    retry_count: int
-
 
 class LangGraphLLMService(LLMServiceProtocol):
     """Infrastructure Adapter - Implements LLM + LangGraph using OpenAI GPT-4o."""
 
     def __init__(self):
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY is not set in .env")
         self.llm = ChatOpenAI(
             model="gpt-4o",
             temperature=0,
-            openai_api_key=os.getenv("OPENAI_API_KEY"),
+            openai_api_key=api_key,
         )
 
     async def extract_from_image(self, image_base64: str) -> BankCard:
@@ -48,18 +49,27 @@ Return only the structured JSON object matching the BankCard schema. Do not incl
                     {"type": "image_url", "image_url": {"url": image_url}},
                 ]
             )
-            result = self.llm.with_structured_output(BankCard).invoke([message])
-            if hasattr(result, 'parsed'):
-                parsed_result = result.parsed
-            else:
-                parsed_result = result
 
+            try:
+                result = self.llm.with_structured_output(BankCard).invoke([message])
+                parsed_result = result
+            except Exception:
+                parsed_result = BankCard(
+                    bank_name="",
+                    payment_network="",
+                    card_number="",
+                    cardholder_name="",
+                    expiry_date="",
+                    card_type=None,
+                    confidence=0.0
+                )
             return {"card": parsed_result, "confidence": parsed_result.confidence}
 
         def validate_node(state: AgentState) -> dict:
             card = state["card"]
-            new_confidence = card.confidence * (0.95 if card.is_valid() else 0.6)
-            return {"confidence": new_confidence}
+            multiplier = 0.95 if card.is_valid() else 0.6
+            card.confidence *= multiplier
+            return {"card": card, "confidence": card.confidence}
 
         graph = StateGraph(AgentState)
         graph.add_node("vision", vision_node)
@@ -71,7 +81,6 @@ Return only the structured JSON object matching the BankCard schema. Do not incl
         app = graph.compile()
         result = app.invoke({
             "image_base64": image_base64,
-            "retry_count": 0,
             "confidence": 0.0,
         })
         return result["card"]

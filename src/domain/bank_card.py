@@ -16,6 +16,8 @@ class BankCard(BaseModel):
     def is_valid(self) -> bool:
         """Validate card number using Luhn algorithm."""
         digits = [int(d) for d in "".join(filter(str.isdigit, self.card_number))]
+        if len(digits) < 13 or len(digits) > 19:
+            return False
         for i in range(len(digits) - 2, -1, -2):
             digits[i] *= 2
             if digits[i] > 9:

@@ -11,8 +11,6 @@ class ExtractBankCardUseCase:
     async def execute(self, image_base64: str) -> BankCard:
         """Extract card information from image."""
         card: BankCard = await self.llm_service.extract_from_image(image_base64)
-        if not card.is_valid():
-            card.confidence *= 0.6
         if card.confidence < 0.1:
             card.confidence = 0.1
         await self.repository.save(card)
