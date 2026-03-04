@@ -29,22 +29,40 @@ class LangGraphLLMService(LLMServiceProtocol):
     async def extract_from_image(self, image_base64: str) -> BankCard:
         def vision_node(state: AgentState) -> dict:
             image_url = f"data:image/jpeg;base64,{state['image_base64']}"
+
+            text_prompt = """You are a world-class bank card OCR specialist with deep expertise in physical cards.
+
+                Your task is to extract information from the provided card image with maximum accuracy.
+
+                Return ONLY a valid JSON object that strictly matches the BankCard schema. No explanations, no markdown, no extra text.
+
+                ### Fields to extract:
+
+                - issuer_name: Exact full issuer name (not co-brand name) exactly as printed on the card, preserving original language and characters. Never shorten, translate, or normalize. If the card has no issuer name, set to null.
+                - payment_network: Exact network/brand: Visa, Mastercard, JCB, American Express, UnionPay, Napas, Discover, etc. Only if explicitly stated on the card; otherwise null.
+                - card_number: Full card number (13-19 digits only). Remove ALL spaces, dashes, or separators. If the card number is partially obscured, return only the visible digits and set confidence lower.
+                - cardholder_name: Exact name as printed on the card, preserving original language and characters. If the card has no name, set to null.
+                - expiry_date: Expiration date in "MM/YY" format. If the card has no expiry, set to null.
+                - card_type: "credit", "debit", "prepaid", "ATM", etc. Only if explicitly stated on the card; otherwise null.
+                - confidence: Float between 0.0 and 1.0. Start with 1.0 for a perfect, clear card. Reduce confidence for any issues:
+                    - Blurry, low-quality, or damaged images → reduce confidence.
+                    - Partially obscured or unreadable fields → reduce confidence proportionally.
+                    - Unusual layouts or non-standard cards → reduce confidence.
+
+                ### Strict Rules:
+                - Never guess or hallucinate values.
+                - If a field is truly unreadable or missing → set to null and reduce confidence.
+                - Support every international bank equally well.
+                - Handle rotated, reflected, or low-quality images intelligently.
+
+                Output only the clean JSON object.
+            """
+
             message = HumanMessage(
                 content=[
                     {
                         "type": "text",
-                        "text": """You are an expert in extracting structured information from bank card images.
-Extract the following fields accurately from the provided image:
-- bank_name: Full name of the issuing bank (e.g., "JPMorgan Chase" or "HSBC").
-- payment_network: Payment network or logo type (e.g., "Visa", "Mastercard", "JCB", "American Express", "Napas").
-- card_number: Full card number (16-19 digits, without spaces).
-- cardholder_name: Name of the cardholder (e.g., "JOHN DOE").
-- expiry_date: Expiration date in MM/YY or MM/YYYY format.
-- card_type: Card function type if visible (e.g., "credit", "debit", "prepaid", "atm"); set to null if unclear.
-- confidence: Your confidence score as a float between 0.0 and 1.0 (1.0 for perfect match).
-
-If a field is unclear or missing, set it to null and lower the confidence accordingly.
-Return only the structured JSON object matching the BankCard schema. Do not include any additional text or explanations."""
+                        "text": text_prompt
                     },
                     {"type": "image_url", "image_url": {"url": image_url}},
                 ]
@@ -55,12 +73,12 @@ Return only the structured JSON object matching the BankCard schema. Do not incl
                 parsed_result = result
             except Exception:
                 parsed_result = BankCard(
-                    bank_name="",
-                    payment_network="",
-                    card_number="",
-                    cardholder_name="",
-                    expiry_date="",
-                    card_type=None,
+                    issuer_name='Unknown',
+                    payment_network='Unknown',
+                    card_number='Unknown',
+                    cardholder_name='Unknown',
+                    expiry_date='Unknown',
+                    card_type='Unknown',
                     confidence=0.0
                 )
             return {"card": parsed_result, "confidence": parsed_result.confidence}

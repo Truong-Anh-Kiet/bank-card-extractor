@@ -9,7 +9,7 @@ import logging
 
 logging.basicConfig(level=logging.ERROR)
 
-router = APIRouter(prefix="/api/v1", tags=["bank-card"])
+router = APIRouter(prefix="/api/v1", tags=["bank-card"], redirect_slashes=False)
 
 SessionDep = Annotated[AsyncSession, Depends(get_db)]
 
@@ -24,7 +24,7 @@ async def get_all_use_case(session: SessionDep) -> GetAllBankCardsUseCase:
 @router.post("/extract", response_model=BankCard)
 @limiter.limit("5/minute")
 async def extract_card(
-    request: Request,
+    request: Request, # noqa: ARG002
     file: UploadFile,
     use_case: ExtractBankCardUseCase = Depends(get_extract_use_case),
 ):

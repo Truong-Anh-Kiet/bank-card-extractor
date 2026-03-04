@@ -12,7 +12,7 @@ class BankCardDB(Base):
     __tablename__ = "bank_cards"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4, unique=True, nullable=False)
-    bank_name = Column(String, nullable=False)
+    issuer_name = Column(String, nullable=False)
     payment_network = Column(String, nullable=False)
     card_number = Column(String, nullable=False)
     cardholder_name = Column(String, nullable=False)
@@ -30,7 +30,7 @@ class PostgresBankCardRepository(BankCardRepository):
 
     async def save(self, card: BankCard) -> None:
         db_card = BankCardDB(
-            bank_name=card.bank_name,
+            issuer_name=card.issuer_name,
             payment_network=card.payment_network,
             card_number=card.card_number,
             cardholder_name=card.cardholder_name,
@@ -49,7 +49,7 @@ class PostgresBankCardRepository(BankCardRepository):
 
         return [
             BankCard(
-                bank_name=db.bank_name,
+                issuer_name=db.issuer_name,
                 payment_network=db.payment_network,
                 card_number=db.card_number,
                 cardholder_name=db.cardholder_name,

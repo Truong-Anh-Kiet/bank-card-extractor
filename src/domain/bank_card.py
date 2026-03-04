@@ -5,7 +5,7 @@ class BankCard(BaseModel):
     """Domain Entity - Core business object."""
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    bank_name: str = Field(..., description="Name of the bank")
+    issuer_name: str = Field(..., description="Name of the bank")
     payment_network: str = Field(..., description="Payment network (e.g., Visa, Mastercard, JCB, Napas)")
     card_number: str = Field(..., description="Full card number")
     cardholder_name: str = Field(..., description="Cardholder's name")
